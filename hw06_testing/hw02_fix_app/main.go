@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/Mr-Cheen1/home_work/hw02_fix_app/printer"
 	"github.com/Mr-Cheen1/home_work/hw02_fix_app/reader"
@@ -24,12 +25,29 @@ func main() {
 		return
 	}
 
-	staff, _ := reader.ReadJSON(path)
+	file, err := os.Open(path)
+	if err != nil {
+		fmt.Printf("Error opening data file: %v\n", err)
+		return
+	}
+	defer file.Close()
+
+	staff, err := reader.ReadJSON(file)
+	if err != nil {
+		fmt.Printf("Error reading data file: %v\n", err)
+		return
+	}
 	printer.PrintStaff(staff)
 }
 
 func ProcessDataFile(filePath string) error {
-	employees, err := reader.ReadJSON(filePath)
+	file, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	employees, err := reader.ReadJSON(file)
 	if err != nil {
 		return err
 	}

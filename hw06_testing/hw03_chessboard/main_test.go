@@ -17,6 +17,8 @@ func TestGenerateChessboard(t *testing.T) {
 		{"negative rows", -1, 8, ""},
 		{"negative cols", 8, -1, ""},
 		{"negative rows and cols", -1, -1, ""},
+
+		{"2x2 board", 2, 2, " ------\n|    # |\n| #    |\n ------"},
 	}
 
 	for _, tt := range tests {
