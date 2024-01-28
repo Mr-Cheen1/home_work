@@ -3,18 +3,13 @@ package main
 import (
 	"errors"
 	"fmt"
-	"sort"
 )
 
 // Функция BinarySearch реализует алгоритм двоичного поиска,
-// которая возвращает ошибку, если срез не отсортирован или пуст.
+// которая возвращает ошибку, если срез пуст.
 func BinarySearch(slice []int, target int) (int, error) {
 	if len(slice) == 0 {
 		return -1, errors.New("slice is empty")
-	}
-
-	if !sort.IntsAreSorted(slice) {
-		return -1, errors.New("slice is not sorted")
 	}
 
 	left, right := 0, len(slice)-1

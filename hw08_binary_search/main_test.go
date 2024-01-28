@@ -160,13 +160,6 @@ func TestBinarySearchErrorHandling(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			name:     "Unsorted slice",
-			slice:    []int{10, 7, 3, 8, 2},
-			target:   3,
-			expected: -1,
-			wantErr:  true,
-		},
-		{
 			name:     "Repeating elements with target present",
 			slice:    []int{2, 3, 3, 3, 4},
 			target:   3,
