@@ -6,10 +6,15 @@ import (
 )
 
 // Функция BinarySearch реализует алгоритм двоичного поиска,
-// которая возвращает ошибку, если срез пуст.
+// которая возвращает ошибку, если срез пуст,
+// меньше или больше первого и последнего значения в массиве.
 func BinarySearch(slice []int, target int) (int, error) {
 	if len(slice) == 0 {
 		return -1, errors.New("slice is empty")
+	}
+
+	if target < slice[0] || target > slice[len(slice)-1] {
+		return -1, errors.New("target is out of bounds")
 	}
 
 	left, right := 0, len(slice)-1

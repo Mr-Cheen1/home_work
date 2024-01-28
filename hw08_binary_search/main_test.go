@@ -194,3 +194,40 @@ func TestBinarySearchErrorHandling(t *testing.T) {
 		})
 	}
 }
+
+func TestBinarySearchOutOfBounds(t *testing.T) {
+	tests := []struct {
+		name     string
+		slice    []int
+		target   int
+		expected int
+		wantErr  bool
+	}{
+		{
+			name:     "Target less than min value",
+			slice:    []int{10, 20, 30, 40, 50},
+			target:   5,
+			expected: -1,
+			wantErr:  true,
+		},
+		{
+			name:     "Target greater than max value",
+			slice:    []int{10, 20, 30, 40, 50},
+			target:   55,
+			expected: -1,
+			wantErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := BinarySearch(tt.slice, tt.target)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("%s: BinarySearch() error = %v, wantErr %v", tt.name, err, tt.wantErr)
+			}
+			if got != tt.expected {
+				t.Errorf("%s: BinarySearch() = %v, want %v", tt.name, got, tt.expected)
+			}
+		})
+	}
+}
