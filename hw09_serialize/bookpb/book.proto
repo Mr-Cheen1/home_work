@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package book;
+
+option go_package = "github.com/Mr-Cheen1/home_work/hw09_serialize/bookpb";
+
+// Сообщение, представляющее Book
+message Book {
+  int32 id = 1;       // Уникальный идентификатор книги
+  string title = 2;   // Название книги
+  string author = 3;  // Автор книги
+  int32 year = 4;     // Год издания
+  int32 size = 5;     // Размер книги в страницах
+  double rate = 6;    // Рейтинг книги, может быть дробным
+}
