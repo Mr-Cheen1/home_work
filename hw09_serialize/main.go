@@ -3,6 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
+
+	"github.com/Mr-Cheen1/home_work/hw09_serialize/bookpb"
+	"google.golang.org/protobuf/proto"
 )
 
 // Структура Book.
@@ -79,8 +83,49 @@ func UnmarshalJSONSlice(data []byte) ([]Book, error) {
 	return books, nil
 }
 
+// Функция для сериализации слайса книг в protobuf.
+func MarshalProtobufSlice(books []Book) ([]byte, error) {
+	pbBooks := &bookpb.Books{
+		Books: make([]*bookpb.Book, len(books)),
+	}
+	for i, book := range books {
+		pbBooks.Books[i] = &bookpb.Book{
+			Id:     int32(book.ID),
+			Title:  book.Title,
+			Author: book.Author,
+			Year:   int32(book.Year),
+			Size:   int32(book.Size),
+			Rate:   book.Rate,
+		}
+	}
+
+	return proto.Marshal(pbBooks)
+}
+
+// Функция для десериализации слайса книг из protobuf.
+func UnmarshalProtobufSlice(data []byte) ([]Book, error) {
+	var pbBooks bookpb.Books
+	if err := proto.Unmarshal(data, &pbBooks); err != nil {
+		return nil, err
+	}
+
+	books := make([]Book, len(pbBooks.Books))
+	for i, pbBook := range pbBooks.Books {
+		books[i] = Book{
+			ID:     int(pbBook.Id),
+			Title:  pbBook.Title,
+			Author: pbBook.Author,
+			Year:   int(pbBook.Year),
+			Size:   int(pbBook.Size),
+			Rate:   pbBook.Rate,
+		}
+	}
+
+	return books, nil
+}
+
 func main() {
-	// Определение слайса структур Book
+	// Определение слайса структур Book.
 	books := []Book{
 		{
 			ID:     1,
@@ -100,7 +145,7 @@ func main() {
 		},
 	}
 
-	// Сериализация в JSON
+	// Сериализация в JSON.
 	booksJSON, err := MarshalJSONSlice(books)
 	if err != nil {
 		fmt.Println("Slice marshaling error:", err)
@@ -108,7 +153,7 @@ func main() {
 	}
 	fmt.Println("Books in JSON:", string(booksJSON))
 
-	// Десериализация из JSON
+	// Десериализация из JSON.
 	var newBooks []Book
 	newBooks, err = UnmarshalJSONSlice(booksJSON)
 	if err != nil {
@@ -116,4 +161,18 @@ func main() {
 		return
 	}
 	fmt.Printf("Books from JSON: %+v\n", newBooks)
+
+	// Сериализация в protobuf.
+	booksProto, err := MarshalProtobufSlice(books)
+	if err != nil {
+		log.Fatalf("Protobuf marshaling error: %v", err)
+	}
+	fmt.Printf("Books in Protobuf (hex): %x\n", booksProto)
+
+	// Десериализация из protobuf.
+	newBooks, err = UnmarshalProtobufSlice(booksProto)
+	if err != nil {
+		log.Fatalf("Protobuf unmarshaling error: %v", err)
+	}
+	fmt.Printf("Books from Protobuf: %+v\n", newBooks)
 }

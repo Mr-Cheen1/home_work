@@ -13,3 +13,8 @@ message Book {
   int32 size = 5;     // Размер книги в страницах
   double rate = 6;    // Рейтинг книги, может быть дробным
 }
+
+// Сообщение для слайса книг
+message Books {
+  repeated Book books = 1; // Слайс книг
+}

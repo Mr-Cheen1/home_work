@@ -1,9 +1,13 @@
 package main
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"reflect"
 	"testing"
+
+	"github.com/Mr-Cheen1/home_work/hw09_serialize/bookpb"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestMarshalJSONSlice(t *testing.T) {
@@ -232,5 +236,91 @@ func TestBookUnmarshalJSONEmptyTitle(t *testing.T) {
 	err := book.UnmarshalJSON([]byte(inputJSON))
 	if err == nil {
 		t.Fatalf("An error was expected due to a missing book title")
+	}
+}
+
+func TestMarshalProtobufSlice(t *testing.T) {
+	books := []Book{
+		{
+			ID:     1,
+			Title:  "Test Book 1",
+			Author: "Author 1",
+			Year:   2023,
+			Size:   100,
+			Rate:   4.5,
+		},
+		{
+			ID:     2,
+			Title:  "Test Book 2",
+			Author: "Author 2",
+			Year:   2024,
+			Size:   200,
+			Rate:   4.7,
+		},
+	}
+
+	booksProto, err := MarshalProtobufSlice(books)
+	if err != nil {
+		t.Fatalf("Protobuf marshaling error: %v", err)
+	}
+
+	var pbBooks bookpb.Books
+	err = proto.Unmarshal(booksProto, &pbBooks)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal books Protobuf: %v", err)
+	}
+
+	if len(pbBooks.Books) != len(books) {
+		t.Fatalf("Expected %d books, got %d", len(books), len(pbBooks.Books))
+	}
+
+	for i, pbBook := range pbBooks.Books {
+		if books[i].ID != int(pbBook.Id) ||
+			books[i].Title != pbBook.Title ||
+			books[i].Author != pbBook.Author ||
+			books[i].Year != int(pbBook.Year) ||
+			books[i].Size != int(pbBook.Size) ||
+			books[i].Rate != pbBook.Rate {
+			t.Errorf("Mismatch in book details at index %d", i)
+		}
+	}
+}
+
+func TestUnmarshalProtobufSlice(t *testing.T) {
+	// Сериализованные в Protobuf данные, полученные из вашего вывода
+	inputProto, err := hex.DecodeString(
+		"0a270801120b5465737420426f6f6b20311a08417574686f72203120e70f287b310000000000001240" +
+			"0a280802120b5465737420426f6f6b20321a08417574686f72203220e80f28c80331cdcccccccccc1240",
+	)
+	if err != nil {
+		t.Fatalf("Failed to decode hex string: %v", err)
+	}
+
+	expectedBooks := []Book{
+		{
+			ID:     1,
+			Title:  "Test Book 1",
+			Author: "Author 1",
+			Year:   2023,
+			Size:   123,
+			Rate:   4.5,
+		},
+		{
+			ID:     2,
+			Title:  "Test Book 2",
+			Author: "Author 2",
+			Year:   2024,
+			Size:   456,
+			Rate:   4.7,
+		},
+	}
+
+	books, err := UnmarshalProtobufSlice(inputProto)
+	if err != nil {
+		t.Fatalf("Protobuf unmarshaling error: %v", err)
+	}
+
+	if !reflect.DeepEqual(books, expectedBooks) {
+		t.Errorf("Expected %+v, received %+v", expectedBooks, books)
 	}
 }
