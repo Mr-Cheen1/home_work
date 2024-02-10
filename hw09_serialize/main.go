@@ -27,24 +27,17 @@ func (b *Book) MarshalJSON() ([]byte, error) {
 		return nil, fmt.Errorf("book title cannot be empty")
 	}
 
-	return json.Marshal(&struct {
-		*Alias
-	}{
-		Alias: (*Alias)(b),
-	})
+	bookTmp := Alias(*b)
+	return json.Marshal(bookTmp)
 }
 
 // UnmarshalJSON реализует интерфейс Unmarshaller для структуры Book.
 func (b *Book) UnmarshalJSON(data []byte) error {
 	type Alias Book
-	aux := &struct {
-		*Alias
-	}{
-		Alias: (*Alias)(b),
-	}
+	aux := (*Alias)(b)
 
 	// Десериализация данных во временную структуру.
-	if err := json.Unmarshal(data, &aux); err != nil {
+	if err := json.Unmarshal(data, aux); err != nil {
 		return err
 	}
 
