@@ -5,26 +5,6 @@ import (
 	"time"
 )
 
-func TestCalculateAverage(t *testing.T) {
-	tests := []struct {
-		name     string
-		data     []int
-		expected float64
-	}{
-		{"empty slice", []int{}, 0.0},
-		{"single element", []int{10}, 10.0},
-		{"multiple elements", []int{1, 2, 3, 4, 5}, 3.0},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := calculateAverage(tt.data); got != tt.expected {
-				t.Errorf("calculateAverage() = %v, want %v", got, tt.expected)
-			}
-		})
-	}
-}
-
 func TestProcessDataUsingAverage(t *testing.T) {
 	rawDataChan := make(chan int, 10)
 	processedDataChan := make(chan float64, 1)
@@ -57,8 +37,7 @@ func TestProcessDataUsingAverage(t *testing.T) {
 }
 
 func TestReadSensorData(t *testing.T) {
-	dataChan := make(chan int)
-	go readSensorData(dataChan)
+	dataChan := readSensorData()
 
 	time.Sleep(2 * time.Second)
 
@@ -69,5 +48,65 @@ func TestReadSensorData(t *testing.T) {
 		}
 	case <-time.After(1 * time.Second):
 		t.Error("No data received, expected at least one data point")
+	}
+}
+
+func TestProcessDataUsingAverageMaxValues(t *testing.T) {
+	rawDataChan := make(chan int, 10)
+	processedDataChan := make(chan float64, 1)
+
+	go func() {
+		for i := 0; i < 10; i++ {
+			rawDataChan <- 100
+		}
+		close(rawDataChan)
+	}()
+
+	go processDataUsingAverage(rawDataChan, processedDataChan)
+
+	select {
+	case result := <-processedDataChan:
+		expected := 100.0
+		if result != expected {
+			t.Errorf("Expected %v, got %v", expected, result)
+		}
+	case <-time.After(2 * time.Second):
+		t.Error("Test timed out")
+	}
+}
+
+func TestProcessDataUsingAverageWithFewDataPoints(t *testing.T) {
+	rawDataChan := make(chan int, 5)
+	processedDataChan := make(chan float64)
+
+	go func() {
+		for i := 1; i <= 5; i++ {
+			rawDataChan <- i
+		}
+		close(rawDataChan)
+	}()
+
+	go processDataUsingAverage(rawDataChan, processedDataChan)
+
+	timeout := time.After(2 * time.Second)
+	select {
+	case _, ok := <-processedDataChan:
+		if ok {
+			t.Error("Did not expect to receive processed data due to insufficient input data points")
+		}
+	case <-timeout:
+	}
+}
+
+func TestReadSensorDataGeneratesData(t *testing.T) {
+	dataChan := readSensorData()
+	timeout := time.After(2 * time.Second)
+	select {
+	case _, ok := <-dataChan:
+		if !ok {
+			t.Error("Expected data channel to be open and receive data, but it was closed")
+		}
+	case <-timeout:
+		t.Error("Expected to receive data, but did not within the timeout period")
 	}
 }
