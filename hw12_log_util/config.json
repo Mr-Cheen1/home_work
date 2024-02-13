@@ -1,0 +1,5 @@
+{
+   "logFilePath": "./logfile.log",
+   "logLevel": "info",
+   "outputPath": "./outputfile.txt"
+ }
