@@ -1,0 +1,2 @@
+Statistics for level 'info':
+info: 3
