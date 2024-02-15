@@ -131,19 +131,15 @@ func TestOutputStats_ToFile(t *testing.T) {
 	stats := map[string]int{
 		"info": 2,
 	}
-	logLevel := "info"
-	outputPath := "output_test.txt"
-	defer os.Remove(outputPath)
-
-	file, err := os.Create(outputPath)
-	if err != nil {
-		t.Fatalf("Failed to create output file: %v", err)
+	config := Config{
+		LogLevel:   "info",
+		OutputPath: "output_test.txt",
 	}
-	defer file.Close()
+	defer os.Remove(config.OutputPath)
 
-	outputStats(file, stats, logLevel)
+	outputStats(&config, stats)
 
-	output, err := os.ReadFile(outputPath)
+	output, err := os.ReadFile(config.OutputPath)
 	if err != nil {
 		t.Fatalf("Failed to read output file: %v", err)
 	}

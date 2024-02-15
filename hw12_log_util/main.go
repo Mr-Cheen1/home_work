@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"strings"
@@ -45,18 +44,7 @@ func main() {
 	flag.Parse()
 
 	stats := analyzeLogFile(&config)
-
-	if config.OutputPath != "" {
-		file, err := os.OpenFile(config.OutputPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
-		if err != nil {
-			log.Fatalf("Failed to open output file: %s\n", err)
-		}
-		defer file.Close()
-		outputStats(file, stats, config.LogLevel)
-	} else {
-
-		outputStats(os.Stdout, stats, config.LogLevel)
-	}
+	outputStats(&config, stats)
 }
 
 func getEnv(key, fallback string) string {
@@ -106,14 +94,19 @@ func analyzeLogFile(config *Config) map[string]int {
 	return stats
 }
 
-func outputStats(writer io.Writer, stats map[string]int, logLevel string) {
-	statsString := fmt.Sprintf("Statistics for level '%s':\n", logLevel)
+func outputStats(config *Config, stats map[string]int) {
+	statsString := fmt.Sprintf("Statistics for level '%s':\n", config.LogLevel)
 	for level, count := range stats {
 		statsString += fmt.Sprintf("%s: %d\n", level, count)
 	}
 
-	_, err := fmt.Fprint(writer, statsString)
-	if err != nil {
-		fmt.Printf("Error when writing: %s\n", err)
+	if config.OutputPath != "" {
+		err := os.WriteFile(config.OutputPath, []byte(statsString), 0o600)
+		if err != nil {
+			fmt.Printf("Error when writing to a file: %s\n", err)
+			return
+		}
+	} else {
+		fmt.Println(statsString)
 	}
 }
