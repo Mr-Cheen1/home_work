@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -48,7 +49,12 @@ func TestHandleRequest(t *testing.T) {
 	initialLogCalls := logger.LogCalls
 
 	for _, tc := range tests {
-		req, err := http.NewRequestWithContext(context.Background(), tc.method, ts.URL, nil)
+		req, err := http.NewRequestWithContext(
+			context.Background(),
+			tc.method,
+			ts.URL+"/test",
+			nil,
+		)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -62,9 +68,23 @@ func TestHandleRequest(t *testing.T) {
 		if resp.StatusCode != tc.want {
 			t.Errorf("For method %s expected status %d, got %d", tc.method, tc.want, resp.StatusCode)
 		}
-	}
 
-	if logger.LogCalls == initialLogCalls {
+		// Проверка тела ответа.
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		expectedBody := ""
+		if tc.method == "GET" {
+			expectedBody = "GET request processed: /test"
+		} else if tc.method == "POST" {
+			expectedBody = "POST request processed: /test"
+		}
+		if string(body) != expectedBody && tc.method != "PUT" {
+			t.Errorf("For method %s expected body %s, got %s", tc.method, expectedBody, string(body))
+		}
+	}
+	if logger.LogCalls <= initialLogCalls {
 		t.Errorf("Expected Log to be called during request handling, but it was not")
 	}
 }

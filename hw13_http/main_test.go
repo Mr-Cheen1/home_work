@@ -141,7 +141,7 @@ func TestWaitForShutdown(t *testing.T) {
 
 	mockServer.mu.Lock()
 	if !mockServer.Stopped {
-		mockServer.mu.Unlock() // Не забываем разблокировать мьютекс
+		mockServer.mu.Unlock()
 		t.Errorf("Server was not stopped by waitForShutdown")
 	}
 	mockServer.mu.Unlock()

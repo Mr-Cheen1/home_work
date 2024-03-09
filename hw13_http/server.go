@@ -82,22 +82,26 @@ func (s Server) handleRequest(w http.ResponseWriter, r *http.Request) {
 
 	s.logger.Log(fmt.Sprintf("Received %s request to %s", r.Method, r.URL.Path))
 
-	// Сервер принимает HTTP GET и POST запросы и возвращает ответ с данными клиенту.
+	// Формирование ответа с путем и параметрами запроса.
+	response := r.URL.Path
+	if len(r.URL.RawQuery) > 0 {
+		response += "?" + r.URL.RawQuery
+	}
+
+	const (
+		MethodGet  = "GET"
+		MethodPost = "POST"
+	)
+
+	// Определение содержимого ответа в зависимости от метода запроса.
+	var responseBody string
 	switch r.Method {
-	case "GET":
+	case MethodGet:
 		s.logger.Log("Processing GET request")
-		w.WriteHeader(http.StatusOK)
-		_, err := w.Write([]byte("GET request processed"))
-		if err != nil {
-			s.logger.Log(fmt.Sprintf("Error writing GET response: %v", err))
-		}
-	case "POST":
+		responseBody = "GET request processed: " + response
+	case MethodPost:
 		s.logger.Log("Processing POST request")
-		w.WriteHeader(http.StatusOK)
-		_, err := w.Write([]byte("POST request processed"))
-		if err != nil {
-			s.logger.Log(fmt.Sprintf("Error writing POST response: %v", err))
-		}
+		responseBody = "POST request processed: " + response
 	default:
 		s.logger.Log(fmt.Sprintf("Unsupported method: %s", r.Method))
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -105,5 +109,13 @@ func (s Server) handleRequest(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			s.logger.Log(fmt.Sprintf("Error writing Method Not Allowed response: %v", err))
 		}
+		return
+	}
+
+	// Отправка ответа клиенту.
+	w.WriteHeader(http.StatusOK)
+	_, err := w.Write([]byte(responseBody))
+	if err != nil {
+		s.logger.Log(fmt.Sprintf("Error writing response: %v", err))
 	}
 }
