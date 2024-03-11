@@ -12,10 +12,11 @@ import (
 
 func TestParseFlags(t *testing.T) {
 	testCases := []struct {
-		name        string
-		args        []string
-		expected    Config
-		expectError bool
+		name         string
+		args         []string
+		expected     Config
+		expectedBody string
+		expectError  bool
 	}{
 		{
 			name: "Server mode with full options",
@@ -33,16 +34,18 @@ func TestParseFlags(t *testing.T) {
 				httpMethod:   "get",
 				resourcePath: "/test",
 			},
-			expectError: false,
+			expectedBody: "",
+			expectError:  false,
 		},
 		{
-			name: "Client mode with full options",
+			name: "Client mode with full options and body",
 			args: []string{
 				"-mode", "client",
 				"-address", "192.168.1.1",
 				"-port", "9090",
 				"-method", "post",
 				"-path", "/data",
+				"-body", `{"key":"value"}`,
 			},
 			expected: Config{
 				mode:         "client",
@@ -51,7 +54,8 @@ func TestParseFlags(t *testing.T) {
 				httpMethod:   "post",
 				resourcePath: "/data",
 			},
-			expectError: false,
+			expectedBody: `{"key":"value"}`,
+			expectError:  false,
 		},
 		{
 			name: "Server mode with default options",
@@ -65,7 +69,8 @@ func TestParseFlags(t *testing.T) {
 				httpMethod:   "get",
 				resourcePath: "/",
 			},
-			expectError: false,
+			expectedBody: "",
+			expectError:  false,
 		},
 		{
 			name: "Default mode and options",
@@ -77,7 +82,8 @@ func TestParseFlags(t *testing.T) {
 				httpMethod:   "get",
 				resourcePath: "/",
 			},
-			expectError: false,
+			expectedBody: "",
+			expectError:  false,
 		},
 		{
 			name: "Invalid port",
@@ -85,8 +91,9 @@ func TestParseFlags(t *testing.T) {
 				"-mode", "client",
 				"-port", "wrong",
 			},
-			expected:    Config{},
-			expectError: true,
+			expected:     Config{},
+			expectedBody: "",
+			expectError:  true,
 		},
 	}
 
@@ -100,7 +107,7 @@ func TestParseFlags(t *testing.T) {
 			// Сбрасываем флаги перед каждым тестом.
 			flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 
-			cfg, err := parseFlags()
+			cfg, body, err := parseFlags()
 
 			if tc.expectError {
 				if err == nil {
@@ -109,8 +116,8 @@ func TestParseFlags(t *testing.T) {
 			} else {
 				if err != nil {
 					t.Errorf("Returned an unexpected error for args %v: %v", tc.args, err)
-				} else if !reflect.DeepEqual(*cfg, tc.expected) {
-					t.Errorf("parseFlags() = %+v, want %+v for args %v", *cfg, tc.expected, tc.args)
+				} else if !reflect.DeepEqual(*cfg, tc.expected) || body != tc.expectedBody {
+					t.Errorf("parseFlags() = %+v, %v, want %+v, %v for args %v", *cfg, body, tc.expected, tc.expectedBody, tc.args)
 				}
 			}
 		})

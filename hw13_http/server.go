@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -88,20 +89,23 @@ func (s Server) handleRequest(w http.ResponseWriter, r *http.Request) {
 		response += "?" + r.URL.RawQuery
 	}
 
-	const (
-		MethodGet  = "GET"
-		MethodPost = "POST"
-	)
-
 	// Определение содержимого ответа в зависимости от метода запроса.
 	var responseBody string
 	switch r.Method {
-	case MethodGet:
+	case http.MethodGet:
 		s.logger.Log("Processing GET request")
 		responseBody = "GET request processed: " + response
-	case MethodPost:
+	case http.MethodPost:
 		s.logger.Log("Processing POST request")
-		responseBody = "POST request processed: " + response
+		// Чтение тела POST запроса.
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			s.logger.Log(fmt.Sprintf("Error reading request body: %v", err))
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		bodyContent := string(bodyBytes)
+		responseBody = "POST request processed: " + response + ", with body: " + bodyContent
 	default:
 		s.logger.Log(fmt.Sprintf("Unsupported method: %s", r.Method))
 		w.WriteHeader(http.StatusMethodNotAllowed)

@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -37,23 +38,33 @@ func TestHandleRequest(t *testing.T) {
 	ts := httptest.NewServer(server.httpServer.Handler)
 	defer ts.Close()
 
+	testPostBody := "test body"
+	expectedPostResponseBody := "POST request processed: /test, with body: " + testPostBody
+
 	tests := []struct {
-		method string
-		want   int
+		method       string
+		want         int
+		body         string
+		expectedBody string
 	}{
-		{"GET", http.StatusOK},
-		{"POST", http.StatusOK},
-		{"PUT", http.StatusMethodNotAllowed},
+		{"GET", http.StatusOK, "", "GET request processed: /test"},
+		{"POST", http.StatusOK, testPostBody, expectedPostResponseBody},
+		{"PUT", http.StatusMethodNotAllowed, "", ""},
 	}
 
 	initialLogCalls := logger.LogCalls
 
 	for _, tc := range tests {
+		var bodyReader io.Reader
+		if tc.body != "" {
+			bodyReader = strings.NewReader(tc.body)
+		}
+
 		req, err := http.NewRequestWithContext(
 			context.Background(),
 			tc.method,
 			ts.URL+"/test",
-			nil,
+			bodyReader,
 		)
 		if err != nil {
 			t.Fatal(err)
@@ -74,14 +85,8 @@ func TestHandleRequest(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		expectedBody := ""
-		if tc.method == "GET" {
-			expectedBody = "GET request processed: /test"
-		} else if tc.method == "POST" {
-			expectedBody = "POST request processed: /test"
-		}
-		if string(body) != expectedBody && tc.method != "PUT" {
-			t.Errorf("For method %s expected body %s, got %s", tc.method, expectedBody, string(body))
+		if string(body) != tc.expectedBody && tc.method != "PUT" {
+			t.Errorf("For method %s expected body %s, got %s", tc.method, tc.expectedBody, string(body))
 		}
 	}
 	if logger.LogCalls <= initialLogCalls {

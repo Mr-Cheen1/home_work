@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -19,15 +21,23 @@ func NewClient(address string, port int, httpMethod, resourcePath string, logger
 	return Client{address, port, httpMethod, resourcePath, logger}
 }
 
-func (c Client) Start() {
+// Добавлен параметр body в метод Start, который может быть любым типом данных.
+// Этот параметр будет сериализован в JSON и отправлен в теле POST запроса.
+func (c *Client) Start(body interface{}) {
 	url := fmt.Sprintf("http://%s:%d%s", c.address, c.port, c.resourcePath)
 	client := &http.Client{}
 	var resp *http.Response
 	var req *http.Request
 	var err error
 
+	// Сериализация тела запроса в JSON.
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		c.logger.Log(fmt.Sprintf("Error marshalling request body: %v", err))
+		return
+	}
+
 	method := strings.ToLower(c.httpMethod)
-	// Клиент отправляет HTTP GET и POST запросы.
 	switch method {
 	case "get":
 		req, err = http.NewRequest("GET", url, nil)
@@ -36,7 +46,7 @@ func (c Client) Start() {
 			return
 		}
 	case "post":
-		req, err = http.NewRequest("POST", url, nil)
+		req, err = http.NewRequest("POST", url, bytes.NewBuffer(jsonBody))
 		if err != nil {
 			c.logger.Log(fmt.Sprintf("Error creating POST request for %s: %v", url, err))
 			return
@@ -55,12 +65,12 @@ func (c Client) Start() {
 	}
 	defer resp.Body.Close()
 
-	// Клиент выводит полученный ответ от сервера в стандартный поток вывода.
-	body, err := io.ReadAll(resp.Body)
+	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		c.logger.Log(fmt.Sprintf("Error reading response from %s: %v", url, err))
 		return
 	}
 
-	c.logger.Log(fmt.Sprintf("Client received response from %s: %s, Status code: %d", url, string(body), resp.StatusCode))
+	c.logger.Log(fmt.Sprintf("Client received response from %s: %s, Status code: %d",
+		url, string(responseBody), resp.StatusCode))
 }

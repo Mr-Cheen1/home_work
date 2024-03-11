@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -27,8 +28,19 @@ func TestNewClient(t *testing.T) {
 	}
 }
 
-func TestClientStart(t *testing.T) {
+func TestClientStartWithPost(t *testing.T) {
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("Failed to read request body: %v", err)
+		}
+		defer r.Body.Close()
+
+		expectedBody := `{"key":"value"}`
+		if string(body) != expectedBody {
+			t.Errorf("Expected request body to be %q, got %q", expectedBody, body)
+		}
+
 		fmt.Fprintln(w, "Test response")
 	}))
 	defer testServer.Close()
@@ -42,8 +54,11 @@ func TestClientStart(t *testing.T) {
 		t.Fatalf("Failed to convert port from string to int: %v", err)
 	}
 
-	client := NewClient(defaultAddress, port, "GET", "/", mockLogger)
-	client.Start()
+	client := NewClient(defaultAddress, port, "POST", "/", mockLogger)
+	body := map[string]interface{}{
+		"key": "value",
+	}
+	client.Start(body)
 
 	expectedLogPart := "Client received response from"
 	foundExpectedLog := false
