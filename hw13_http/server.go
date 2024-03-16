@@ -99,6 +99,7 @@ func (s Server) handleRequest(w http.ResponseWriter, r *http.Request) {
 		s.logger.Log("Processing POST request")
 		// Чтение тела POST запроса.
 		bodyBytes, err := io.ReadAll(r.Body)
+		defer r.Body.Close()
 		if err != nil {
 			s.logger.Log(fmt.Sprintf("Error reading request body: %v", err))
 			w.WriteHeader(http.StatusInternalServerError)
