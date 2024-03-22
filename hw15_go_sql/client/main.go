@@ -32,6 +32,11 @@ func main() {
 	case http.MethodPost:
 		req, err = http.NewRequest(http.MethodPost, serverURL+resourcePath, bytes.NewBuffer(requestBody))
 		req.Header.Set("Content-Type", "application/json")
+	case http.MethodPut:
+		req, err = http.NewRequest(http.MethodPut, serverURL+resourcePath, bytes.NewBuffer(requestBody))
+		req.Header.Set("Content-Type", "application/json")
+	case http.MethodDelete:
+		req, err = http.NewRequest(http.MethodDelete, serverURL+resourcePath+"?id="+os.Args[4], nil)
 	default:
 		fmt.Printf("Unsupported HTTP method: %s\n", httpMethod)
 		os.Exit(1)
@@ -47,9 +52,9 @@ func main() {
 		fmt.Printf("Error sending request: %v\n", err)
 		os.Exit(1)
 	}
-	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
 	if err != nil {
 		fmt.Printf("Error reading response body: %v\n", err)
 		os.Exit(1)
