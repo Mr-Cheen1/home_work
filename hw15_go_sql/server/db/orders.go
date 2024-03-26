@@ -1,32 +1,28 @@
 package db
 
-// Функции для работы с заказами.
-func InsertOrder(userID int, totalAmount float64) (int, error) {
-	tx, err := db.Begin()
-	if err != nil {
-		return 0, err
-	}
-	defer tx.Rollback()
+import "database/sql"
 
+type Order struct {
+	ID          int     `json:"id"`
+	UserID      int     `json:"userId"`
+	OrderDate   string  `json:"orderDate"`
+	TotalAmount float64 `json:"totalAmount"`
+}
+
+func InsertOrder(order Order) (int, error) {
 	var orderID int
-	err = tx.QueryRow(
-		"INSERT INTO Orders (user_id, order_date, total_amount) VALUES ($1, NOW(), $2) RETURNING id",
-		userID, totalAmount,
+	err := DB.QueryRow(
+		"INSERT INTO Orders (user_id, order_date, total_amount) VALUES ($1, $2, $3) RETURNING id",
+		order.UserID, order.OrderDate, order.TotalAmount,
 	).Scan(&orderID)
 	if err != nil {
 		return 0, err
 	}
-
-	err = tx.Commit()
-	if err != nil {
-		return 0, err
-	}
-
 	return orderID, nil
 }
 
 func DeleteOrder(orderID int) error {
-	tx, err := db.Begin()
+	tx, err := DB.Begin()
 	if err != nil {
 		return err
 	}
@@ -50,29 +46,19 @@ func DeleteOrder(orderID int) error {
 	return nil
 }
 
-func GetOrdersByUser(userID int) ([]map[string]interface{}, error) {
-	rows, err := db.Query("SELECT * FROM Orders WHERE user_id = $1", userID)
-	if err != nil {
-		return nil, err
+func GetOrders(userID ...int) ([]Order, error) {
+	query := "SELECT * FROM Orders"
+	if len(userID) > 0 {
+		query += " WHERE user_id = $1"
+		return queryRows(query, func(rows *sql.Rows) (Order, error) {
+			var order Order
+			err := rows.Scan(&order.ID, &order.UserID, &order.OrderDate, &order.TotalAmount)
+			return order, err
+		}, userID[0])
 	}
-	defer rows.Close()
-
-	orders := []map[string]interface{}{}
-	for rows.Next() {
-		var id int
-		var orderDate string
-		var totalAmount float64
-		err = rows.Scan(&id, &userID, &orderDate, &totalAmount)
-		if err != nil {
-			return nil, err
-		}
-		order := map[string]interface{}{
-			"id":           id,
-			"user_id":      userID,
-			"order_date":   orderDate,
-			"total_amount": totalAmount,
-		}
-		orders = append(orders, order)
-	}
-	return orders, nil
+	return queryRows(query, func(rows *sql.Rows) (Order, error) {
+		var order Order
+		err := rows.Scan(&order.ID, &order.UserID, &order.OrderDate, &order.TotalAmount)
+		return order, err
+	})
 }

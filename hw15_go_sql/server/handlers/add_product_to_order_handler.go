@@ -4,45 +4,49 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"net/url"
 
 	"github.com/Mr-Cheen1/home_work/hw15_go_sql/server/db"
 )
 
 const ErrMethodNotAllowed = "Method not allowed"
 
+type AddProductToOrderData struct {
+	Path      string     `json:"path"`
+	Params    url.Values `json:"params"`
+	Status    int        `json:"status,omitempty"`
+	Error     string     `json:"error,omitempty"`
+	OrderID   int        `json:"orderId"`
+	ProductID int        `json:"productId"`
+	Quantity  int        `json:"quantity"`
+}
+
 func AddProductToOrderHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Received request: %s %s", r.Method, r.URL.Path)
-	response := map[string]interface{}{
-		"path":   r.URL.Path,
-		"params": r.URL.Query(),
+	data := AddProductToOrderData{
+		Path:   r.URL.Path,
+		Params: r.URL.Query(),
 	}
-
-	if r.Method != http.MethodPost {
-		response["status"] = http.StatusMethodNotAllowed
-		response["error"] = ErrMethodNotAllowed
+	if r.Method != http.MethodPut {
+		data.Status = http.StatusMethodNotAllowed
+		data.Error = ErrMethodNotAllowed
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(response)
+		json.NewEncoder(w).Encode(data)
 		return
 	}
 
-	var data map[string]int
 	json.NewDecoder(r.Body).Decode(&data)
-	orderID := data["order_id"]
-	productID := data["product_id"]
+	data.Path = r.URL.Path // Устанавливаем значение поля Path
 
-	err := db.AddProductToOrder(orderID, productID)
+	err := db.AddProductToOrder(db.DB, data.OrderID, data.ProductID, data.Quantity)
 	if err != nil {
-		response["status"] = http.StatusInternalServerError
-		response["error"] = err.Error()
+		data.Status = http.StatusInternalServerError
+		data.Error = err.Error()
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(response)
+		json.NewEncoder(w).Encode(data)
 		return
 	}
-	response["status"] = http.StatusCreated
-	response["data"] = map[string]interface{}{
-		"order_id":   orderID,
-		"product_id": productID,
-	}
+	data.Status = http.StatusCreated
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(response)
+	json.NewEncoder(w).Encode(data)
 }

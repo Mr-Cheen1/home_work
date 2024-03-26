@@ -9,76 +9,77 @@ import (
 	"github.com/Mr-Cheen1/home_work/hw15_go_sql/server/db"
 )
 
+type OrderResponse struct {
+	Path    string      `json:"path"`
+	Params  string      `json:"params"`
+	Data    interface{} `json:"data,omitempty"`
+	Status  int         `json:"status"`
+	OrderID int         `json:"orderId,omitempty"`
+}
+
 func OrdersHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Received request: %s %s", r.Method, r.URL.Path)
+	response := OrderResponse{
+		Path:   r.URL.Path,
+		Params: r.URL.Query().Encode(),
+	}
 
 	switch r.Method {
 	case http.MethodGet:
-		handleGetOrders(w, r)
-	case http.MethodPost:
-		handleCreateOrder(w, r)
+		getOrders(w, r, &response)
+	case http.MethodPut:
+		createOrder(w, r, &response)
 	case http.MethodDelete:
-		handleDeleteOrder(w, r)
+		deleteOrder(w, r, &response)
 	}
 }
 
-func handleGetOrders(w http.ResponseWriter, r *http.Request) {
-	userID, _ := strconv.Atoi(r.URL.Query().Get("user_id"))
-	orders, err := db.GetOrdersByUser(userID)
+func getOrders(w http.ResponseWriter, r *http.Request, response *OrderResponse) {
+	userIDStr := r.URL.Query().Get("user_id")
+
+	var orders []db.Order
+	var err error
+
+	if userIDStr != "" {
+		userID, _ := strconv.Atoi(userIDStr)
+		orders, err = db.GetOrders(userID)
+	} else {
+		orders, err = db.GetOrders()
+	}
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	response := map[string]interface{}{
-		"path":   r.URL.Path,
-		"params": r.URL.Query(),
-		"data":   orders,
-		"status": http.StatusOK,
-	}
-
+	response.Data = orders
+	response.Status = http.StatusOK
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
 
-func handleCreateOrder(w http.ResponseWriter, r *http.Request) {
-	var order map[string]interface{}
+func createOrder(w http.ResponseWriter, r *http.Request, response *OrderResponse) {
+	var order db.Order
 	json.NewDecoder(r.Body).Decode(&order)
-
-	userID, _ := strconv.Atoi(order["user_id"].(string))
-	totalAmount, _ := order["total_amount"].(float64)
-
-	orderID, err := db.InsertOrder(userID, totalAmount)
+	orderID, err := db.InsertOrder(order)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	response := map[string]interface{}{
-		"path":   r.URL.Path,
-		"params": r.URL.Query(),
-		"data":   map[string]int{"order_id": orderID},
-		"status": http.StatusCreated,
-	}
-
+	response.OrderID = orderID
+	response.Status = http.StatusCreated
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(response)
 }
 
-func handleDeleteOrder(w http.ResponseWriter, r *http.Request) {
+func deleteOrder(w http.ResponseWriter, r *http.Request, response *OrderResponse) {
 	orderID, _ := strconv.Atoi(r.URL.Query().Get("id"))
 	err := db.DeleteOrder(orderID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	response := map[string]interface{}{
-		"path":   r.URL.Path,
-		"params": r.URL.Query(),
-		"status": http.StatusNoContent,
-	}
-
+	response.Status = http.StatusNoContent
 	w.WriteHeader(http.StatusNoContent)
 	json.NewEncoder(w).Encode(response)
 }

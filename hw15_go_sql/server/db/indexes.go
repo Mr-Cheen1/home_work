@@ -2,7 +2,7 @@ package db
 
 // Создание индексов.
 func CreateIndexes() error {
-	tx, err := db.Begin()
+	tx, err := DB.Begin()
 	if err != nil {
 		return err
 	}

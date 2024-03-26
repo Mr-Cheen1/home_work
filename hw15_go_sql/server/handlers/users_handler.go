@@ -5,131 +5,113 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/Mr-Cheen1/home_work/hw15_go_sql/server/db"
 )
 
+type UserResponse struct {
+	Path   string      `json:"path"`
+	Params string      `json:"params"`
+	Data   interface{} `json:"data,omitempty"`
+	Status int         `json:"status"`
+}
+
 func UsersHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Received request: %s %s", r.Method, r.URL.Path)
-	response := map[string]interface{}{
-		"path":   r.URL.Path,
-		"params": r.URL.Query(),
+	response := UserResponse{
+		Path:   r.URL.Path,
+		Params: r.URL.Query().Encode(),
 	}
 
 	switch r.Method {
 	case http.MethodGet:
-		handleGetUsers(w, response)
-	case http.MethodPost:
-		handleCreateUser(w, r, response)
+		getUsers(w, r, &response)
 	case http.MethodPut:
-		handleUpdateUser(w, r, response)
+		createUser(w, r, &response)
+	case http.MethodPost:
+		updateUser(w, r, &response)
 	case http.MethodDelete:
-		handleDeleteUser(w, r, response)
-	default:
-		handleMethodNotAllowed(w, response)
+		deleteUser(w, r, &response)
 	}
 }
 
-func handleGetUsers(w http.ResponseWriter, response map[string]interface{}) {
-	users, err := db.GetUsers()
+func getUsers(w http.ResponseWriter, r *http.Request, response *UserResponse) {
+	userIDStr := r.URL.Query().Get("user_id")
+
+	var users []db.User
+	var err error
+
+	if userIDStr != "" {
+		userID, _ := strconv.Atoi(userIDStr)
+		users, err = db.GetUsers(userID)
+	} else {
+		users, err = db.GetUsers()
+	}
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	response["data"] = users
-	response["status"] = http.StatusOK
+
+	response.Data = users
+	response.Status = http.StatusOK
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
 
-func handleCreateUser(w http.ResponseWriter, r *http.Request, response map[string]interface{}) {
-	var user map[string]string
-	err := json.NewDecoder(r.Body).Decode(&user)
+func createUser(w http.ResponseWriter, r *http.Request, response *UserResponse) {
+	var user db.User
+	json.NewDecoder(r.Body).Decode(&user)
+	insertedUserID, err := db.InsertUser(user)
 	if err != nil {
-		response["status"] = http.StatusBadRequest
-		response["error"] = "Invalid request payload"
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(response)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	err = db.InsertUser(user["name"], user["email"], user["password"])
-	if err != nil {
-		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
-			response["status"] = http.StatusConflict
-			response["error"] = "Email already exists"
-			w.WriteHeader(http.StatusConflict)
-			json.NewEncoder(w).Encode(response)
-			return
-		}
-		response["status"] = http.StatusInternalServerError
-		response["error"] = err.Error()
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(response)
-		return
-	}
-	response["data"] = user
-	response["status"] = http.StatusCreated
+	user.ID = insertedUserID
+	response.Data = user
+	response.Status = http.StatusCreated
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(response)
 }
 
-func handleUpdateUser(w http.ResponseWriter, r *http.Request, response map[string]interface{}) {
-	var user map[string]string
-	err := json.NewDecoder(r.Body).Decode(&user)
-	if err != nil {
-		response["status"] = http.StatusBadRequest
-		response["error"] = "Invalid request payload"
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(response)
+func updateUser(w http.ResponseWriter, r *http.Request, response *UserResponse) {
+	var user db.User
+	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+		log.Printf("Error decoding user data: %v", err)
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	id, err := strconv.Atoi(user["id"])
-	if err != nil {
-		response["status"] = http.StatusBadRequest
-		response["error"] = "Invalid user ID"
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(response)
+	if user.ID == 0 {
+		log.Printf("User ID is required")
+		http.Error(w, "User ID is required", http.StatusBadRequest)
 		return
 	}
 
-	err = db.UpdateUser(id, user["name"], user["email"], user["password"])
+	err := db.UpdateUser(user)
 	if err != nil {
+		log.Printf("Error updating user: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	response["data"] = user
-	response["status"] = http.StatusOK
+
+	response.Data = user
+	response.Status = http.StatusOK
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
 
-func handleDeleteUser(w http.ResponseWriter, r *http.Request, response map[string]interface{}) {
-	id, err := strconv.Atoi(r.URL.Query().Get("id"))
+func deleteUser(w http.ResponseWriter, r *http.Request, response *UserResponse) {
+	id, err := strconv.Atoi(r.URL.Query().Get("user_id"))
 	if err != nil {
-		response["status"] = http.StatusBadRequest
-		response["error"] = "Invalid user ID"
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(response)
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
 		return
 	}
-
 	err = db.DeleteUser(id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	response["status"] = http.StatusOK
-	response["message"] = "User successfully deleted"
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
-}
-
-func handleMethodNotAllowed(w http.ResponseWriter, response map[string]interface{}) {
-	response["status"] = http.StatusMethodNotAllowed
-	response["error"] = ErrMethodNotAllowed
-	w.WriteHeader(http.StatusMethodNotAllowed)
-	json.NewEncoder(w).Encode(response)
+	response.Status = http.StatusNoContent
+	w.WriteHeader(http.StatusNoContent)
 }

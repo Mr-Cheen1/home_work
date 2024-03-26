@@ -9,74 +9,102 @@ import (
 	"github.com/Mr-Cheen1/home_work/hw15_go_sql/server/db"
 )
 
+type ProductResponse struct {
+	Path   string      `json:"path"`
+	Params string      `json:"params"`
+	Data   interface{} `json:"data,omitempty"`
+	Status int         `json:"status"`
+}
+
 func ProductsHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Received request: %s %s", r.Method, r.URL.Path)
-	response := map[string]interface{}{
-		"path":   r.URL.Path,
-		"params": r.URL.Query(),
+	response := ProductResponse{
+		Path:   r.URL.Path,
+		Params: r.URL.Query().Encode(),
 	}
 
 	switch r.Method {
 	case http.MethodGet:
-		getProducts(w, response)
-	case http.MethodPost:
-		createProduct(w, r, response)
+		getProducts(w, r, &response)
 	case http.MethodPut:
-		updateProduct(w, r, response)
+		createProduct(w, r, &response)
+	case http.MethodPost:
+		updateProduct(w, r, &response)
 	case http.MethodDelete:
-		deleteProduct(w, r, response)
+		deleteProduct(w, r, &response)
 	}
 }
 
-func getProducts(w http.ResponseWriter, response map[string]interface{}) {
+func getProducts(w http.ResponseWriter, r *http.Request, response *ProductResponse) {
+	idStr := r.URL.Query().Get("id")
 	products, err := db.GetProducts()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	response["data"] = products
-	response["status"] = http.StatusOK
+
+	if idStr != "" {
+		id, parseErr := strconv.Atoi(idStr)
+		if parseErr != nil {
+			http.Error(w, "Invalid product ID", http.StatusBadRequest)
+			return
+		}
+		for _, product := range products {
+			if product.ID == id {
+				response.Data = []db.Product{product}
+				break
+			}
+		}
+	} else {
+		response.Data = products
+	}
+
+	response.Status = http.StatusOK
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
 
-func createProduct(w http.ResponseWriter, r *http.Request, response map[string]interface{}) {
-	var product map[string]interface{}
-	json.NewDecoder(r.Body).Decode(&product)
-	err := db.InsertProduct(product["name"].(string), product["price"].(float64))
+func createProduct(w http.ResponseWriter, r *http.Request, response *ProductResponse) {
+	var product db.Product
+	if err := json.NewDecoder(r.Body).Decode(&product); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	err := db.InsertProduct(&product)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	response["data"] = product
-	response["status"] = http.StatusCreated
+
+	response.Data = product
+	response.Status = http.StatusCreated
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(response)
 }
 
-func updateProduct(w http.ResponseWriter, r *http.Request, response map[string]interface{}) {
-	var product map[string]interface{}
+func updateProduct(w http.ResponseWriter, r *http.Request, response *ProductResponse) {
+	var product db.Product
 	json.NewDecoder(r.Body).Decode(&product)
-	id, _ := strconv.Atoi(product["id"].(string))
-	err := db.UpdateProduct(id, product["name"].(string), product["price"].(float64))
+	err := db.UpdateProduct(product)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	response["data"] = product
-	response["status"] = http.StatusOK
+	response.Data = product
+	response.Status = http.StatusOK
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
 
-func deleteProduct(w http.ResponseWriter, r *http.Request, response map[string]interface{}) {
+func deleteProduct(w http.ResponseWriter, r *http.Request, response *ProductResponse) {
 	id, _ := strconv.Atoi(r.URL.Query().Get("id"))
 	err := db.DeleteProduct(id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	response["status"] = http.StatusNoContent
+	response.Status = http.StatusNoContent
 	w.WriteHeader(http.StatusNoContent)
 	json.NewEncoder(w).Encode(response)
 }
