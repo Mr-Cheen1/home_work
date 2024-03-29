@@ -31,3 +31,4 @@ services:
       dockerfile: client/Dockerfile
     depends_on:
       - server
+
