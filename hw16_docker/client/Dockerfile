@@ -8,12 +8,12 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 go build -o client ./client/main.go
+RUN CGO_ENABLED=0 go build -o myclient ./client/main.go
 
 FROM alpine:latest
 
 WORKDIR /app
 
-COPY --from=builder /app/client .
+COPY --from=builder /app/myclient .
 
-CMD ["/app/client"]
+CMD ["/app/myclient"]
